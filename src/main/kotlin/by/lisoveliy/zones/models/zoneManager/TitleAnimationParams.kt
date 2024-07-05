@@ -15,6 +15,6 @@ class TitleAnimationParams(val fadeIn: Int, val duration: Int, val fadeOut: Int)
     }
 
     companion object {
-        val defaultAnimationParams = TitleAnimationParams(200, 1200, 300)
+        val defaultAnimationParams = TitleAnimationParams(4, 24, 6)
     }
 }

@@ -86,6 +86,7 @@ class ZoneManager
     }
 
     private fun updateZones(enteredZones: List<Zone>, exitedZones: List<Zone>, player: Player) {
+        runBlocking {
         //Update zone state
         exitedZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.remove(zone)
@@ -95,8 +96,9 @@ class ZoneManager
         }
 
         //Send animation
-        runBlocking {
             launch {
+                //Prevent spam on zones collision
+                if(exitedZones.count() > enteredZones.count())
                 exitedZones.forEach { zone: Zone ->
                     (player as ServerPlayer).connection.send(
                         ClientboundSoundPacket(
@@ -116,6 +118,7 @@ class ZoneManager
                     player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
                     delay(tap.fullDuration.toLong())
                 }
+
                 enteredZones.forEach { zone: Zone ->
                     val tap = titleAnimationParams.divided(enteredZones.count())
                     (player as ServerPlayer)
