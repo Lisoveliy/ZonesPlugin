@@ -1,7 +1,12 @@
 package by.lisoveliy.zones.services
 
 import by.lisoveliy.zones.extensions.PositionExtensions.getIntegerVector
-import by.lisoveliy.zones.models.Zone
+import by.lisoveliy.zones.extensions.PacketExtensions
+import by.lisoveliy.zones.models.zoneManager.TitleAnimationParams
+import by.lisoveliy.zones.models.zoneManager.Zone
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import net.minecraft.core.Holder
 import net.minecraft.core.Vec3i
 import net.minecraft.network.chat.Component
@@ -18,9 +23,10 @@ import kotlin.collections.HashMap
 
 class ZoneManager
     (zones: List<Zone>) {
-//    private val logger = LoggerFactory.getLogger(this::class.java)
+    //    private val logger = LoggerFactory.getLogger(this::class.java)
     private val zones: MutableList<Zone> = mutableListOf()
     private val playerZones: HashMap<UUID, MutableList<Zone>> = java.util.HashMap()
+    private val titleAnimationParams = TitleAnimationParams.defaultAnimationParams
     private var blockTick = false
 
     init {
@@ -80,40 +86,57 @@ class ZoneManager
     }
 
     private fun updateZones(enteredZones: List<Zone>, exitedZones: List<Zone>, player: Player) {
+        //Update zone state
         exitedZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.remove(zone)
-            (player as ServerPlayer).connection.send(
-                ClientboundSoundPacket(
-                    Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
-                    SoundSource.NEUTRAL,
-                    player.position().x,
-                    player.position().y,
-                    player.position().z,
-                    1f,
-                    1f,
-                    0
-                )
-            )
-            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\" §4покинута!")))
-            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
         }
         enteredZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.add(zone)
-            (player as ServerPlayer)
-            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\"")))
-            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§aДобро пожаловать!")))
-            player.connection.send(
-                ClientboundSoundPacket(
-                    Holder.direct(SoundEvents.PLAYER_LEVELUP),
-                    SoundSource.NEUTRAL,
-                    player.position().x,
-                    player.position().y,
-                    player.position().z,
-                    1f,
-                    1f,
-                    0
-                )
-            )
+        }
+
+        //Send animation
+        runBlocking {
+            launch {
+                exitedZones.forEach { zone: Zone ->
+                    (player as ServerPlayer).connection.send(
+                        ClientboundSoundPacket(
+                            Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
+                            SoundSource.NEUTRAL,
+                            player.position().x,
+                            player.position().y,
+                            player.position().z,
+                            1f,
+                            1f,
+                            0
+                        )
+                    )
+                    val tap = titleAnimationParams.divided(exitedZones.count())
+                    player.connection.send(PacketExtensions.fromTitleAnimationParams(tap))
+                    player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\" §4покинута!")))
+                    player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
+                    delay(tap.fullDuration.toLong())
+                }
+                enteredZones.forEach { zone: Zone ->
+                    val tap = titleAnimationParams.divided(enteredZones.count())
+                    (player as ServerPlayer)
+                    player.connection.send(PacketExtensions.fromTitleAnimationParams(tap))
+                    player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\"")))
+                    player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§aДобро пожаловать!")))
+                    player.connection.send(
+                        ClientboundSoundPacket(
+                            Holder.direct(SoundEvents.PLAYER_LEVELUP),
+                            SoundSource.NEUTRAL,
+                            player.position().x,
+                            player.position().y,
+                            player.position().z,
+                            1f,
+                            1f,
+                            0
+                        )
+                    )
+                    delay(tap.fullDuration.toLong())
+                }
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-package by.lisoveliy.zones.models
+package by.lisoveliy.zones.models.zoneManager
 
 import by.lisoveliy.zones.models.jsonSerializable.BoundingBox
 import com.google.gson.annotations.SerializedName

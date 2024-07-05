@@ -1,6 +1,6 @@
 package by.lisoveliy.zones.models.jsonSerializable
 
-import by.lisoveliy.zones.models.Zone
+import by.lisoveliy.zones.models.zoneManager.Zone
 
 
 class Config(val zones: List<Zone> = listOf()){
