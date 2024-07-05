@@ -80,6 +80,23 @@ class ZoneManager
     }
 
     private fun updateZones(enteredZones: List<Zone>, exitedZones: List<Zone>, player: Player) {
+        exitedZones.forEach { zone: Zone ->
+            playerZones[player.uuid]!!.remove(zone)
+            (player as ServerPlayer).connection.send(
+                ClientboundSoundPacket(
+                    Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
+                    SoundSource.NEUTRAL,
+                    player.position().x,
+                    player.position().y,
+                    player.position().z,
+                    1f,
+                    1f,
+                    0
+                )
+            )
+            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\" §4покинута!")))
+            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
+        }
         enteredZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.add(zone)
             (player as ServerPlayer)
@@ -97,23 +114,6 @@ class ZoneManager
                     0
                 )
             )
-        }
-        exitedZones.forEach { zone: Zone ->
-            playerZones[player.uuid]!!.remove(zone)
-            (player as ServerPlayer).connection.send(
-                ClientboundSoundPacket(
-                    Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
-                    SoundSource.NEUTRAL,
-                    player.position().x,
-                    player.position().y,
-                    player.position().z,
-                    1f,
-                    1f,
-                    0
-                )
-            )
-            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\" §4покинута!")))
-            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
         }
     }
 }
