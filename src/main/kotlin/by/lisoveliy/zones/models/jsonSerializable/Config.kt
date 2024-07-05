@@ -1,7 +1,7 @@
 package by.lisoveliy.zones.models.jsonSerializable
 
 import by.lisoveliy.zones.models.Zone
-import net.minecraft.world.level.levelgen.structure.BoundingBox
+
 
 class Config(val zones: List<Zone> = listOf()){
     companion object{

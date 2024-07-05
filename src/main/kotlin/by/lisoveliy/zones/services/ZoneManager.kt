@@ -73,7 +73,7 @@ class ZoneManager
     private fun getZonesFromPosition(playerPos: Vec3i, dimensionId: String): List<Zone> {
         val playerZones = mutableListOf<Zone>()
         zones.forEach { zone ->
-            if (zone.position.isInside(playerPos) && zone.dimensionId == dimensionId)
+            if (zone.position.toMinecraft().isInside(playerPos) && zone.dimensionId == dimensionId)
                 playerZones.add(zone)
         }
         return playerZones
