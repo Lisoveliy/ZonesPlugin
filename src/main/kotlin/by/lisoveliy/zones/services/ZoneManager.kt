@@ -5,7 +5,6 @@ import by.lisoveliy.zones.models.Zone
 import net.minecraft.core.Holder
 import net.minecraft.core.Vec3i
 import net.minecraft.network.chat.Component
-import net.minecraft.network.chat.Style
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket
 import net.minecraft.network.protocol.game.ClientboundSoundPacket
@@ -14,55 +13,49 @@ import net.minecraft.sounds.SoundEvents
 import net.minecraft.sounds.SoundSource
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.level.Level
-import net.minecraft.world.level.levelgen.structure.BoundingBox
-import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.collections.HashMap
 
-class ZoneManager {
-    private val logger = LoggerFactory.getLogger("zone.zoneManager")
+class ZoneManager
+    (zones: List<Zone>) {
+//    private val logger = LoggerFactory.getLogger(this::class.java)
     private val zones: MutableList<Zone> = mutableListOf()
     private val playerZones: HashMap<UUID, MutableList<Zone>> = java.util.HashMap()
     private var blockTick = false
 
     init {
-        val box = BoundingBox(-3, -3, -3, 3, 3, 3)
-        zones.add(Zone(box, "Деревня"))
-    }
-
-    private fun getZonesFromPosition(playerPos: Vec3i): List<Zone> {
-        val playerZones = mutableListOf<Zone>()
-        zones.forEach { zone ->
-            if (zone.position.isInside(playerPos))
-                playerZones.add(zone)
-        }
-        return playerZones
+        this.zones.addAll(zones)
     }
 
     fun tick(world: Level) {
+        //Prevent concurrent and unstable behavior
         if (blockTick || world.isClientSide)
             return
+        //lock mutex
         blockTick = true
-
+        //dimension players
         val players = world.players()
+
+        //remove player zones on disconnected players
         playerZones.forEach { existingPlayer ->
             if (!players.any { x -> x.uuid == existingPlayer.key } && players.isNotEmpty()) {
                 playerZones.remove(existingPlayer.key)
             }
         }
+
+        //update players zones
         players.forEach { player ->
+            //add player zones for connected players
             if (playerZones[player.uuid] == null)
                 playerZones[player.uuid] = mutableListOf()
 
+            //calculate zone changes for tick
             val enteredZones = mutableListOf<Zone>()
             val exitedZones = mutableListOf<Zone>()
             val zones = this.getZonesFromPosition(
                 player.position()
-                    .getIntegerVector()
+                    .getIntegerVector(), world.dimensionTypeId().location().path
             )
-            logger.info("entered zones: {}", zones)
-            logger.info("current player zones: {}", playerZones[player.uuid])
-
             zones.forEach { zone ->
                 if (!playerZones[player.uuid]!!.contains(zone))
                     enteredZones.add(zone)
@@ -77,41 +70,50 @@ class ZoneManager {
         blockTick = false
     }
 
+    private fun getZonesFromPosition(playerPos: Vec3i, dimensionId: String): List<Zone> {
+        val playerZones = mutableListOf<Zone>()
+        zones.forEach { zone ->
+            if (zone.position.isInside(playerPos) && zone.dimensionId == dimensionId)
+                playerZones.add(zone)
+        }
+        return playerZones
+    }
+
     private fun updateZones(enteredZones: List<Zone>, exitedZones: List<Zone>, player: Player) {
         enteredZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.add(zone)
-            (player as ServerPlayer).connection.send(
+            (player as ServerPlayer)
+            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\"")))
+            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§aДобро пожаловать!")))
+            player.connection.send(
                 ClientboundSoundPacket(
-                    Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
-                    SoundSource.WEATHER,
+                    Holder.direct(SoundEvents.PLAYER_LEVELUP),
+                    SoundSource.NEUTRAL,
                     player.position().x,
                     player.position().y,
                     player.position().z,
                     1f,
                     1f,
-                    1
+                    0
                 )
             )
-            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("§a${zone.name}")))
-            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§6Вы в зоне")))
         }
         exitedZones.forEach { zone: Zone ->
             playerZones[player.uuid]!!.remove(zone)
             (player as ServerPlayer).connection.send(
                 ClientboundSoundPacket(
                     Holder.direct(SoundEvents.EXPERIENCE_ORB_PICKUP),
-                    SoundSource.WEATHER,
+                    SoundSource.NEUTRAL,
                     player.position().x,
                     player.position().y,
                     player.position().z,
                     1f,
                     1f,
-                    1
+                    0
                 )
             )
-            player.playSound(SoundEvents.EXPERIENCE_BOTTLE_THROW, 1f, 1f)
-            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("§5${zone.name}")))
-            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§4Вы покинули зону")))
+            player.connection.send(ClientboundSetTitleTextPacket(Component.literal("Зона §6\"${zone.name}\" §4покинута!")))
+            player.connection.send(ClientboundSetSubtitleTextPacket(Component.literal("§5Счастливой дороги!")))
         }
     }
 }
